@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battleship AI Solver</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            background-color: #1e1e2e;
+            color: white;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #ffcc00;
+            text-shadow: 2px 2px 5px rgba(255, 204, 0, 0.8);
+            margin-bottom: 20px;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            gap: 4px;
+            justify-content: center;
+            padding: 10px;
+            background: #2a2a3d;
+            border-radius: 10px;
+            box-shadow: 0px 0px 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background-color: #3a3a55;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s ease-in-out, transform 0.2s ease-in-out;
+        }
+
+        .cell:hover {
+            background-color: #505072;
+            transform: scale(1.1);
+        }
+
+        .hit {
+            background-color: #ff4444;
+            color: white;
+            font-weight: bold;
+            animation: hitAnimation 0.3s ease-in-out;
+        }
+
+        @keyframes hitAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        button {
+            background-color: #ffcc00;
+            color: black;
+            font-size: 16px;
+            padding: 12px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0px 4px 8px rgba(255, 204, 0, 0.5);
+        }
+
+        button:hover {
+            background-color: #ffdb4d;
+            box-shadow: 0px 6px 12px rgba(255, 204, 0, 0.8);
+            transform: translateY(-2px);
+        }
+
+        .ship-status {
+            background-color: #2a2a3d;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.2);
+            width: 250px;
+            flex-shrink: 0;
+        }
+
+        .ship-status p {
+            margin: 10px 0;
+        }
+
+        .status-legend-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .legend {
+            font-size: 18px;
+            background: #2a2a3d;
+            padding: 15px;
+            border-radius: 10px;
+            width: fit-content;
+            margin: 0 auto;
+            box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.2);
+        }
+
+        .legend p {
+            margin: 5px 0;
+        }
+
+        .legend strong {
+            color: #ffcc00;
+        }
+
+        .game-over {
+            font-size: 24px;
+            color: #ff4444;
+            margin-top: 20px;
+            animation: gameOverAnimation 1s ease-in-out infinite;
+        }
+
+        @keyframes gameOverAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Battleship AI Solver</h1>
+    <div class="container">
+        <!-- Battleship Grid -->
+        <div class="grid" id="battleshipGrid"></div>
+        
+        <!-- Ship Status and Legends to the Right -->
+        <div class="status-legend-container">
+            <div class="ship-status">
+                <h2>Ships Status</h2>
+                <div id="shipStatusList"></div>
+            </div>
+            
+            <div class="legend">
+                <p><strong>Legend:</strong></p>
+                <p>A = Aircraft Carrier (5 units)</p>
+                <p> B = Battleship (4 units)</p>
+                <p>C = Cruiser (3 units)</p>
+                <p>S = Submarine (3 units)</p>
+                <p>D = Destroyer (2 units)</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="solveBattleship()">Start AI Solver</button>
+        <button onclick="stopAI()">Stop AI</button>
+        <button onclick="resetGame()">Reset Game</button>
+    </div>
+
+    <div id="gameOverMessage" class="game-over" style="display: none;">All ships found! Game Over.</div>
+
+    <script>
+        const size = 10;
+        const ships = [
+            { size: 5, name: "A", hits: 0, found: false },
+            { size: 4, name: "B", hits: 0, found: false },
+            { size: 3, name: "C", hits: 0, found: false },
+            { size: 3, name: "S", hits: 0, found: false },
+            { size: 2, name: "D", hits: 0, found: false }
+        ];
+        let grid, totalShipCells, stopAIFlag;
+
+        function initializeGame() {
+            grid = Array.from({ length: size }, () => Array(size).fill('-'));
+            totalShipCells = 0;
+            stopAIFlag = false;
+            ships.forEach(ship => {
+                ship.hits = 0;
+                ship.found = false;
+            });
+            placeShips();
+            displayGrid();
+            updateShipStatus();
+            document.getElementById("gameOverMessage").style.display = "none";
+        }
+
+        function placeShips() {
+            ships.forEach(({ size, name }) => {
+                while (true) {
+                    let row = Math.floor(Math.random() * 10);
+                    let col = Math.floor(Math.random() * 10);
+                    let direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+                    
+                    if (direction === 'horizontal' && col + size <= 10 && grid[row].slice(col, col + size).every(cell => cell === '-')) {
+                        for (let i = 0; i < size; i++) grid[row][col + i] = name;
+                        totalShipCells += size;
+                        break;
+                    } else if (direction === 'vertical' && row + size <= 10 && grid.slice(row, row + size).every(r => r[col] === '-')) {
+                        for (let i = 0; i < size; i++) grid[row + i][col] = name;
+                        totalShipCells += size;
+                        break;
+                    }
+                }
+            });
+        }
+
+        function displayGrid() {
+            const board = document.getElementById("battleshipGrid");
+            board.innerHTML = "";
+            grid.forEach((row, rIdx) => {
+                row.forEach((cell, cIdx) => {
+                    const div = document.createElement("div");
+                    div.classList.add("cell");
+                    div.id = `cell-${rIdx}-${cIdx}`;
+                    div.textContent = "-";
+                    board.appendChild(div);
+                });
+            });
+        }
+
+        function updateShipStatus() {
+            const statusList = document.getElementById("shipStatusList");
+            statusList.innerHTML = "";
+            ships.forEach(({ name, hits, size, found }) => {
+                const p = document.createElement("p");
+                p.textContent = `${name}: ${found ? "Found" : `${hits}/${size} hit(s)`}`;
+                statusList.appendChild(p);
+            });
+        }
+
+        async function solveBattleship() {
+            stopAIFlag = false;
+            let foundShipCells = 0;
+            for (let row = 0; row < size; row++) {
+                for (let col = 0; col < size; col++) {
+                    if (stopAIFlag) return;
+
+                    let cellValue = grid[row][col];
+                    let cellElement = document.getElementById(`cell-${row}-${col}`);
+                    cellElement.textContent = "O";
+                    await new Promise(r => setTimeout(r, 200));
+
+                    if (cellValue !== '-') {
+                        cellElement.classList.add("hit");
+                        cellElement.textContent = cellValue;
+                        foundShipCells++;
+                        const ship = ships.find(s => s.name === cellValue);
+                        if (ship && !ship.found) {
+                            ship.hits++;
+                            if (ship.hits === ship.size) {
+                                ship.found = true;
+                            }
+                            updateShipStatus();
+                        }
+                        if (foundShipCells === totalShipCells) {
+                            document.getElementById("gameOverMessage").style.display = "block";
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        function stopAI() {
+            stopAIFlag = true;
+        }
+
+        function resetGame() {
+            stopAIFlag = true;
+            initializeGame();
+        }
+
+        initializeGame();
+    </script>
+</body>
+</html>
