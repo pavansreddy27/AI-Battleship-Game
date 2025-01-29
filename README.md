@@ -36,9 +36,9 @@ To run this project locally, you just need a web browser. There are no additiona
 
 ```
 /Battleship-AI-Solver
-├── index.html         # Main HTML file with game interface
-├── README.md          # This file
-└── styles.css         # (Optional) External CSS file if separated (Not in your case)
+├── index.html         # Main HTML file with game interface with CSS and Javascript 
+└── README.md          # This file
+
 ```
 
 ## Contributions
